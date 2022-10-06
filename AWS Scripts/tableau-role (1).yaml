@@ -1,0 +1,239 @@
+############################################################
+# Filename: Tableau-EC2-Role.yaml
+
+# Version History : 
+# v1:  Authored by Kevin Gross for support or feedback reach out at kevin.gross@accenture.com
+
+# Comments:
+# 
+# 12/30/2020 - KG
+# Template desginged to allow account to write to S3 bucket, Redshift and Athena.
+# 
+
+
+############################################################
+
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters: 
+
+  TableauBucket: 
+    Type: String 
+    Description: S3 Bucket ARN
+
+Resources: 
+
+
+  TableauInstanceProfile: 
+    Type: "AWS::IAM::InstanceProfile"
+    Properties: 
+      Path: "/"
+      Roles: 
+        - 
+          Ref: TableauRole
+
+  TableauRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join [ "-", [ "Tableau", "EC2", !Ref 'AWS::StackName', 'role' ] ]
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: ec2.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonSSMPatchAssociation
+
+  S3Policy:
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyName: !Join [ "-", [ "S3", !Ref 'AWS::StackName', 'policy' ] ]
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - s3:GetLifecycleConfiguration
+          - s3:GetBucketTagging
+          - s3:GetInventoryConfiguration
+          - s3:GetObjectVersionTagging
+          - s3:ListBucketVersions
+          - s3:GetBucketLogging
+          - s3:ListBucket
+          - s3:GetAccelerateConfiguration
+          - s3:GetBucketPolicy
+          - s3:GetObjectVersionTorrent
+          - s3:GetObjectAcl
+          - s3:GetEncryptionConfiguration
+          - s3:GetBucketObjectLockConfiguration
+          - s3:GetBucketRequestPayment
+          - s3:GetObjectVersionAcl
+          - s3:GetObjectTagging
+          - s3:GetMetricsConfiguration
+          - s3:GetBucketOwnershipControls
+          - s3:GetBucketPublicAccessBlock
+          - s3:GetBucketPolicyStatus
+          - s3:ListBucketMultipartUploads
+          - s3:GetObjectRetention
+          - s3:GetBucketWebsite
+          - s3:GetBucketVersioning
+          - s3:GetBucketAcl
+          - s3:GetObjectLegalHold
+          - s3:GetBucketNotification
+          - s3:GetReplicationConfiguration
+          - s3:ListMultipartUploadParts
+          - s3:GetObject
+          - s3:GetObjectTorrent
+          - s3:GetBucketCORS
+          - s3:GetAnalyticsConfiguration
+          - s3:GetObjectVersionForReplication
+          - s3:GetBucketLocation
+          - s3:GetObjectVersion
+          Resource:
+          - !Ref TableauBucket
+          - Fn::Join: ['/', [!Ref TableauBucket, '*'] ]
+        - Effect: Allow
+          Action:
+          - s3:ListBucket
+          Resource:
+          - !Ref TableauBucket
+        - Effect: Allow
+          Action:
+          - s3:ListStorageLensConfigurations
+          - s3:GetAccessPoint
+          - s3:GetAccountPublicAccessBlock
+          - s3:ListAllMyBuckets
+          - s3:ListAccessPoints
+          - s3:ListJobs
+          Resource:
+          - "*"
+      Roles:
+      - Ref: TableauRole
+
+  RedshiftPolicy:
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyName: !Join [ "-", [ "Redshift" , !Ref 'AWS::StackName', 'policy' ] ]
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - redshift:DescribeHsmConfigurations
+          - redshift:ListDatabases
+          - redshift:CreateTags
+          - redshift:DescribeClusterTracks
+          - redshift:ModifySavedQuery
+          - redshift:DescribeEvents
+          - redshift:CreateSavedQuery
+          - redshift:DescribeDefaultClusterParameters
+          - redshift:DescribeEventCategories
+          - redshift:DescribeClusterSubnetGroups
+          - redshift:DescribeQuery
+          - redshift:DescribeReservedNodeOfferings
+          - redshift:DescribeSnapshotSchedules
+          - redshift:DescribeClusterVersions
+          - redshift:DescribeClusterSnapshots
+          - redshift:DescribeSavedQueries
+          - redshift:DescribeLoggingStatus
+          - redshift:DescribeStorage
+          - redshift:DescribeTableRestoreStatus
+          - redshift:DescribeClusterParameters
+          - redshift:DeleteTags
+          - redshift:DescribeClusterSecurityGroups
+          - redshift:DescribeEventSubscriptions
+          - redshift:DescribeOrderableClusterOptions
+          - redshift:DescribeHsmClientCertificates
+          - redshift:DescribeAccountAttributes
+          - redshift:ViewQueriesInConsole
+          - redshift:DescribeScheduledActions
+          - redshift:DescribeTags
+          - redshift:DescribeClusterParameterGroups
+          - redshift:DescribeClusterDbRevisions
+          - redshift:FetchResults
+          - redshift:ViewQueriesFromConsole
+          - redshift:CreateScheduledAction
+          - redshift:ListTables
+          - redshift:CancelQuery
+          - redshift:ListSchemas
+          - redshift:DescribeSnapshotCopyGrants
+          - redshift:DescribeReservedNodes
+          - redshift:DescribeNodeConfigurationOptions
+          - redshift:ListSavedQueries
+          - redshift:DescribeClusters
+          - redshift:CancelQuerySession
+          - redshift:DescribeResize
+          - redshift:ExecuteQuery
+          - redshift:JoinGroup
+          - redshift:GetReservedNodeExchangeOfferings
+          - redshift:DescribeTable
+          Resource:
+          - "*"
+      Roles:
+      - Ref: TableauRole
+
+  AthenaPolicy:
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyName: !Join [ "-", [ "Athena" , !Ref 'AWS::StackName', 'policy' ] ]
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - athena:UpdateDataCatalog
+          - athena:GetTableMetadata
+          - athena:StartQueryExecution
+          - athena:ListDataCatalogs
+          - athena:GetQueryResults
+          - athena:GetDatabase
+          - athena:GetDataCatalog
+          - athena:DeleteNamedQuery
+          - athena:ListWorkGroups
+          - athena:GetNamedQuery
+          - athena:ListQueryExecutions
+          - athena:GetWorkGroup
+          - athena:StopQueryExecution
+          - athena:TagResource
+          - athena:CreateDataCatalog
+          - athena:UntagResource
+          - athena:GetQueryResultsStream
+          - athena:ListTagsForResource
+          - athena:ListNamedQueries
+          - athena:CreateNamedQuery
+          - athena:ListDatabases
+          - athena:DeleteDataCatalog
+          - athena:GetQueryExecution
+          - athena:ListTableMetadata
+          - athena:BatchGetNamedQuery
+          - athena:BatchGetQueryExecution
+          Resource:
+          - "*"
+      Roles:
+      - Ref: TableauRole
+
+
+
+Outputs:
+  TableauRoleName:
+    Value: !Ref TableauRole
+    Description: Name of role
+
+  S3PolicyNameName:
+    Value: !Ref S3Policy
+    Description: Policy created for this process
+
+  RedshiftPolicyName:
+    Value: !Ref RedshiftPolicy
+    Description: Policy created for this process
+
+  AthenaPolicyName:
+    Value: !Ref AthenaPolicy
+    Description: Policy created for this process
+
+  S3NameARN:
+    Value: !Ref TableauBucket
+    Description: ARN for S3 Bucket

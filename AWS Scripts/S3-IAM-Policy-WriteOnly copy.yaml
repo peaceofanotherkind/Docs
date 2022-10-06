@@ -1,0 +1,99 @@
+############################################################
+# Filename: ECC_S3.yaml
+
+# Version History : 
+# v1:  Authored by Kevin Gross for support or feedback reach out at kevin.gross@accenture.com
+
+# Comments:
+# 
+# 10/2/2020 - KG
+# Template desginged to allow account to write to S3 bucket.
+# 
+
+############################################################
+
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters: 
+
+  S3Name: 
+    Type: String 
+    #Description: S3 Bucket ARN for Firehose destination
+  S3ServiceAccount:
+    Type: String
+    MaxLength: 10
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: Must contain only alphanumeric characters.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+
+      -
+        Label:
+          default: "S3 Role Informaation"
+        Parameters:
+          - S3Name
+          - S3ServiceAccount
+
+    ParameterLabels:
+
+      S3Name:
+        default: "ARN for S3 Bucket"
+
+      S3ServiceAccount:
+        default: "Service Account accessing S3 Bucket"
+
+
+Resources: 
+
+  S3Policy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties: 
+      ManagedPolicyName: !Join [ "-", [ !Ref S3ServiceAccount , !Ref 'AWS::StackName', 'policy' ] ]
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - s3:GetBucketTagging
+          - s3:GetObjectVersionTagging
+          - s3:GetBucketLogging
+          - s3:ListBucket
+          - s3:GetBucketPolicy
+          - s3:PutObject
+          - s3:PutObjectTagging
+          - s3:GetObjectAcl
+          - s3:GetEncryptionConfiguration
+          - s3:DescribeJob
+          - s3:GetAnalyticsConfiguration
+          - s3:GetObjectTagging
+          - s3:GetBucketLocation
+          - s3:GetBucketTagging
+          - s3:GetObjectVersion
+          Resource:
+          - !Ref S3Name
+          - Fn::Join: ['/', [!Ref S3Name, '*'] ]
+        - Effect: Allow
+          Action:
+          - s3:GetAccountPublicAccessBlock
+          - s3:ListAllMyBuckets
+          - s3:HeadBucket
+          - s3:ListBucket
+          Resource:
+          - !Ref S3Name
+
+Outputs:
+
+  S3PolicyName:
+    Value: !Ref S3Policy
+    Description: Policy created for this process
+
+  S3NameARN:
+    Value: !Ref S3Name
+    Description: ARN for S3 Bucket
+    
+    
+    
+    
+    

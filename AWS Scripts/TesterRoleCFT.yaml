@@ -1,0 +1,552 @@
+############################################################
+# Filename: TesterRoleCFT.yaml
+
+# Version History : 
+# v1:  Authored by Kevin Gross for support or feedback reach out at kevin.gross@accenture.com
+
+# Comments:
+# 
+# 02/18/2021 - KG
+# 
+# 
+
+############################################################
+
+AWSTemplateFormatVersion: 2010-09-09
+
+
+
+Resources:
+
+  TesterPollicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties: 
+      ManagedPolicyName: !Join [ "-", [  !Ref 'AWS::StackName','misc', 'policy' ]]
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+
+        - Sid: TesterAPIGateway
+          Effect: Allow
+          Action:
+          - apigateway:DELETE
+          - apigateway:GET
+          - apigateway:POST
+          Resource: "*"
+
+        - Sid: TesterAutoscaling
+          Effect: Allow
+          Action:
+          - autoscaling:Describe*
+          Resource: "*"
+        
+        - Sid: TesterBilling
+          Effect: Allow
+          Action:
+          - aws-portal:ViewBilling
+          Resource: "*"
+        
+        - Sid: TesterCloudWatch
+          Effect: Allow
+          Action:
+          - cloudwatch:Describe*
+          - cloudwatch:Get*
+          - cloudwatch:List*
+          Resource: "*"
+        
+        - Sid: TesterDataPipeline
+          Effect: Allow
+          Action:
+          - datapipeline:DescribeObjects
+          - datapipeline:DescribePipelines
+          - datapipeline:GetPipelineDefinition
+          - datapipeline:ListPipelines
+          - datapipeline:QueryObjects
+          Resource: "*"
+        
+        - Sid: TesterDax
+          Effect: Allow
+          Action:
+          - dax:BatchGetItem
+          - dax:Describe*
+          - dax:GetItem
+          - dax:List*
+          - dax:Query
+          - dax:Scan
+          Resource: "*"
+        
+        - Sid: TesterDDB
+          Effect: Allow
+          Action:
+          - dynamodb:BatchGetItem
+          - dynamodb:Describe*
+          - dynamodb:GetItem
+          - dynamodb:List*
+          - dynamodb:Query
+          - dynamodb:Scan
+          Resource: "*"
+        
+        - Sid: TesterEC2
+          Effect: Allow
+          Action:
+          - ec2:Describe*
+          Resource: "*"
+        
+        - Sid: TesterELB
+          Effect: Allow
+          Action:
+          - elasticloadbalancing:Describe*
+          Resource: "*"
+
+        - Sid: TesterEventBridge
+          Effect: Allow
+          Action:
+          - events:CancelReplay
+          - events:CreateEventBus
+          - events:DeactivateEventSource
+          - events:DeleteEventBus
+          - events:DeleteRule
+          - events:DescribeArchive
+          - events:DescribeEventBus
+          - events:DescribeEventSource
+          - events:DescribePartnerEventSource
+          - events:DescribeReplay
+          - events:DescribeRule
+          - events:DisableRule
+          - events:EnableRule
+          - events:ListArchives
+          - events:ListEventBuses
+          - events:ListEventSources
+          - events:ListPartnerEventSourceAccounts
+          - events:ListPartnerEventSources
+          - events:ListReplays
+          - events:ListRuleNamesByTarget
+          - events:ListRules
+          - events:ListTagsForResource
+          - events:ListTargetsByRule
+          - events:PutEvents
+          - events:PutRule
+          - events:PutTargets
+          - events:RemovePermission
+          - events:RemoveTargets
+          - events:TagResource
+          - events:TestEventPattern
+          - events:UntagResource
+          Resource: "*"
+
+        - Sid: TesterHealth
+          Effect: Allow
+          Action:
+          - health:DescribeAffectedEntities
+          - health:DescribeEventAggregates
+          - health:DescribeEventDetails
+          - health:DescribeEventTypes
+          - health:DescribeEvents
+          - health:DescribeEntityAggregates
+          Resource: "*"
+        
+        - Sid: TesterIAM
+          Effect: Allow
+          Action:
+          - iam:GenerateCredentialReport
+          - iam:GenerateServiceLastAccessedDetails
+          - iam:Get*
+          - iam:List*
+          - iam:SimulateCustomPolicy
+          - iam:SimulatePrincipalPolicy
+          Resource: "*"
+        
+        - Sid: TesterKinesis
+          Effect: Allow
+          Action:
+          - kinesis:Describe*
+          - kinesis:Get*
+          - kinesis:List*
+          Resource: "*"
+        
+        - Sid: TesterKMS
+          Effect: Allow
+          Action:
+          - kms:DescribeKey
+          - kms:ListAliases
+          Resource: "*"
+
+        - Sid: TesterLogs
+          Effect: Allow
+          Action:
+          - logs:Describe*
+          - logs:FilterLogEvents
+          - logs:Get*
+          - logs:List*
+          - logs:StartQuery
+          - logs:StopQuery
+          - logs:TestMetricFilter
+          - logs:TestMetricFilter
+          Resource: "*"
+        
+        - Sid: TesterOrg
+          Effect: Allow
+          Action:
+          - organizations:DescribeAccount
+          - organizations:DescribeOrganization
+          - organizations:DescribeOrganizationalUnit
+          - organizations:ListAccounts
+          - organizations:ListAccountsForParent
+          - organizations:ListAWSServiceAccessForOrganization
+          - organizations:ListChildren
+          - organizations:ListOrganizationalUnitsForParent
+          - organizations:ListParents
+          Resource: "*"
+
+        - Sid: TesterS3
+          Effect: Allow
+          Action:
+          - s3:DeleteObject
+          - s3:DeleteObjectVersion
+          - s3:DescribeJob
+          - s3:Get*
+          - s3:List*
+          - s3:PutObject
+          Resource: "*"
+        
+        - Sid: TesterSecretsManager
+          Effect: Allow
+          Action:
+          - secretsmanager:DescribeSecret
+          - secretsmanager:GetSecretValue
+          - secretsmanager:ListSecrets
+          Resource: "*"
+        
+        - Sid: TesterSNS
+          Effect: Allow
+          Action:
+          - sns:GetTopicAttributes
+          - sns:List*
+          Resource: "*"
+        
+        - Sid: TesterSQS
+          Effect: Allow
+          Action:
+          - sqs:GetQueueAttributes
+          - sqs:GetQueueUrl
+          - sqs:ListDeadLetterSourceQueues
+          - sqs:ListQueues
+          Resource: "*"
+        
+        - Sid: TesterSSM
+          Effect: Allow
+          Action:
+          - ssm:Describe*
+          - ssm:Get*
+          - ssm:List*
+          Resource: "*"
+        
+        - Sid: TesterStates
+          Effect: Allow
+          Action:
+          - states:DescribeActivity
+          - states:DescribeExecution
+          - states:DescribeStateMachine
+          - states:DescribeStateMachineForExecution
+          - states:GetExecutionHistory
+          - states:ListActivities
+          - states:ListExecutions
+          - states:ListStateMahines
+          Resource: "*"
+
+
+  TesterDatabasePollicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties: 
+      ManagedPolicyName: !Join [ "-", [  !Ref 'AWS::StackName', 'database', 'policy' ]]
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        
+        - Sid: TesterRDS
+          Effect: Allow
+          Action:
+          - rds:DescribeAccountAttributes
+          - rds:DescribeCertificates
+          - rds:DescribeDBClusterBacktracks
+          - rds:DescribeDBClusterEndpoints
+          - rds:DescribeDBClusterParameterGroups
+          - rds:DescribeDBClusterParameters
+          - rds:DescribeDBClusters
+          - rds:DescribeDBClusterSnapshotAttributes
+          - rds:DescribeDBClusterSnapshots
+          - rds:DescribeDBEngineVersions
+          - rds:DescribeDBInstanceAutomatedBackups
+          - rds:DescribeDBInstances
+          - rds:DescribeDBLogFiles
+          - rds:DescribeDBParameterGroups
+          - rds:DescribeDBParameters
+          - rds:DescribeDBProxies
+          - rds:DescribeDBProxyTargetGroups
+          - rds:DescribeDBProxyTargets
+          - rds:DescribeDBSecurityGroups
+          - rds:DescribeDBSnapshotAttributes
+          - rds:DescribeDBSnapshots
+          - rds:DescribeDBSubnetGroups
+          - rds:DescribeEngineDefaultClusterParameters
+          - rds:DescribeEngineDefaultParameters
+          - rds:DescribeEventCategories
+          - rds:DescribeEvents
+          - rds:DescribeEventSubscriptions
+          - rds:DescribeExportTasks
+          - rds:DescribeGlobalClusters
+          - rds:DescribeOptionGroupOptions
+          - rds:DescribeOptionGroups
+          - rds:DescribeOrderableDBInstanceOptions
+          - rds:DescribePendingMaintenanceActions
+          - rds:DescribeReservedDBInstances
+          - rds:DescribeReservedDBInstancesOfferings
+          - rds:DescribeSourceRegions
+          - rds:DescribeValidDBInstanceModifications
+          - rds:DownloadDBLogFilePortion
+          - rds:ListTagsForResource
+          Resource: "*"
+        
+        - Sid: TesterRedshift
+          Effect: Allow
+          Action:
+          - redshift:DescribeAccountAttributes
+          - redshift:DescribeClusterDbRevisions
+          - redshift:DescribeClusterParameterGroups
+          - redshift:DescribeClusterParameters
+          - redshift:DescribeClusters
+          - redshift:DescribeClusterSecurityGroups
+          - redshift:DescribeClusterSnapshots
+          - redshift:DescribeClusterSubnetGroups
+          - redshift:DescribeClusterTracks
+          - redshift:DescribeClusterVersions
+          - redshift:DescribeDefaultClusterParameters
+          - redshift:DescribeEventCategories
+          - redshift:DescribeEvents
+          - redshift:DescribeEventSubscriptions
+          - redshift:DescribeHsmClientCertificates
+          - redshift:DescribeHsmConfigurations
+          - redshift:DescribeLoggingStatus
+          - redshift:DescribeNodeConfigurationOptions
+          - redshift:DescribeOrderableClusterOptions
+          - redshift:DescribeQuery
+          - redshift:DescribeReservedNodeOfferings
+          - redshift:DescribeReservedNodes
+          - redshift:DescribeResize
+          - redshift:DescribeSavedQueries
+          - redshift:DescribeScheduledActions
+          - redshift:DescribeSnapshotCopyGrants
+          - redshift:DescribeSnapshotSchedules
+          - redshift:DescribeStorage
+          - redshift:DescribeTable
+          - redshift:DescribeTableRestoreStatus
+          - redshift:DescribeTags
+          - redshift:FetchResults
+          - redshift:GetReservedNodeExchangeOfferings
+          - redshift:ListDatabases
+          - redshift:ListSavedQueries
+          - redshift:ListSchemas
+          - redshift:ListTables
+          - redshift:ViewQueriesFromConsole
+          - redshift:ViewQueriesInConsole
+          Resource: "*"
+
+
+  TesterAthenaPollicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties: 
+      ManagedPolicyName: !Join [ "-", [  !Ref 'AWS::StackName','athena', 'policy' ]]
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        
+        - Sid: TesterAthena
+          Effect: Allow
+          Action:
+          - athena:BatchGetNamedQuery
+          - athena:BatchGetQueryExecution
+          - athena:CancelQueryExecution
+          - athena:CreateDataCatalog
+          - athena:CreateNamedQuery
+          - athena:CreateWorkGroup
+          - athena:DeleteDataCatalog
+          - athena:DeleteNamedQuery
+          - athena:DeleteWorkGroup
+          - athena:GetCatalogs
+          - athena:GetDatabase
+          - athena:GetDataCatalog
+          - athena:GetExecutionEngine
+          - athena:GetExecutionEngines
+          - athena:GetNamedQuery
+          - athena:GetNamespace
+          - athena:GetNamespaces
+          - athena:GetQueryExecution
+          - athena:GetQueryExecutions
+          - athena:GetQueryResults
+          - athena:GetQueryResultsStream
+          - athena:GetTable
+          - athena:GetTableMetadata
+          - athena:GetTables
+          - athena:GetWorkGroup
+          - athena:ListDatabases
+          - athena:ListDataCatalogs
+          - athena:ListEngineVersions
+          - athena:ListNamedQueries
+          - athena:ListQueryExecutions
+          - athena:ListTableMetadata
+          - athena:ListTagsForResource
+          - athena:ListWorkGroups
+          - athena:RunQuery
+          - athena:StartQueryExecution
+          - athena:StopQueryExecution
+          - athena:UpdateDataCatalog
+          - athena:UpdateWorkGroup
+          Resource: "*"
+
+  TesterGluePollicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties: 
+      ManagedPolicyName: !Join [ "-", [  !Ref 'AWS::StackName','glue', 'policy' ]]
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        
+        - Sid: TesterGlue
+          Effect: Allow
+          Action:
+          - glue:BatchDeleteTableVersion
+          - glue:BatchGetCrawlers
+          - glue:BatchGetDevEndpoints
+          - glue:BatchGetJobs
+          - glue:BatchGetPartition
+          - glue:BatchGetTriggers
+          - glue:BatchGetWorkflows
+          - glue:CheckSchemaVersionValidity
+          - glue:DeleteTableVersion
+          - glue:GetCatalogImportStatus
+          - glue:GetClassifier
+          - glue:GetClassifiers
+          - glue:GetConnection
+          - glue:GetConnections
+          - glue:GetCrawler
+          - glue:GetCrawlerMetrics
+          - glue:GetCrawlers
+          - glue:GetDatabase
+          - glue:GetDatabases
+          - glue:GetDataCatalogEncryptionSettings
+          - glue:GetDataflowGraph
+          - glue:GetDevEndpoint
+          - glue:GetDevEndpoints
+          - glue:GetJob
+          - glue:GetJobBookmark
+          - glue:GetJobRun
+          - glue:GetJobRuns
+          - glue:GetJobs
+          - glue:GetMapping
+          - glue:GetMLTaskRun
+          - glue:GetMLTaskRuns
+          - glue:GetMLTransform
+          - glue:GetMLTransforms
+          - glue:GetPartition
+          - glue:GetPartitions
+          - glue:GetPlan
+          - glue:GetRegistry
+          - glue:GetResourcePolicies
+          - glue:GetResourcePolicy
+          - glue:GetSchema
+          - glue:GetSchemaByDefinition
+          - glue:GetSchemaVersion
+          - glue:GetSchemaVersionsDiff
+          - glue:GetSecurityConfiguration
+          - glue:GetSecurityConfigurations
+          - glue:GetTable
+          - glue:GetTables
+          - glue:GetTableVersion
+          - glue:GetTableVersions
+          - glue:GetTags
+          - glue:GetTrigger
+          - glue:GetTriggers
+          - glue:GetUserDefinedFunction
+          - glue:GetUserDefinedFunctions
+          - glue:GetWorkflow
+          - glue:GetWorkflowRun
+          - glue:GetWorkflowRunProperties
+          - glue:GetWorkflowRuns
+          - glue:ListCrawlers
+          - glue:ListDevEndpoints
+          - glue:ListJobs
+          - glue:ListMLTransforms
+          - glue:ListRegistries
+          - glue:ListSchemas
+          - glue:ListSchemaVersions
+          - glue:ListTriggers
+          - glue:ListWorkflows
+          - glue:QuerySchemaVersionMetadata
+          - glue:SearchTables
+          - glue:StartCrawler
+          - glue:StartCrawlerSchedule
+          - glue:StartExportLabelsTaskRun
+          - glue:StartImportLabelsTaskRun
+          - glue:StartJobRun
+          - glue:StartMLEvaluationTaskRun
+          - glue:StartMLLabelingSetGenerationTaskRun
+          - glue:StartTrigger
+          - glue:StartWorkflowRun
+          - glue:StopCrawler
+          - glue:StopCrawlerSchedule
+          - glue:StopTrigger
+          Resource: "*"
+
+
+
+  TesterLambdaPollicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties: 
+      ManagedPolicyName: !Join [ "-", [  !Ref 'AWS::StackName','lambda', 'policy' ]]
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        
+        - Sid: TesterLambda
+          Effect: Allow
+          Action:
+          - lambda:GetAccountSettings
+          - lambda:GetAlias
+          - lambda:GetEventSourceMapping
+          - lambda:GetFunction
+          - lambda:GetFunctionConcurrency
+          - lambda:GetFunctionConfiguration
+          - lambda:GetFunctionEventInvokeConfig
+          - lambda:GetLayerVersion
+          - lambda:GetLayerVersionPolicy
+          - lambda:GetPolicy
+          - lambda:GetProvisionedConcurrencyConfig
+          - lambda:InvokeAsync
+          - lambda:InvokeFunction
+          - lambda:ListAliases
+          - lambda:ListEventSourceMappings
+          - lambda:ListFunctionEventInvokeConfigs
+          - lambda:ListFunctions
+          - lambda:ListLayers
+          - lambda:ListLayerVersions
+          - lambda:ListProvisionedConcurrencyConfigs
+          - lambda:ListTags
+          - lambda:ListVersionsByFunction
+          Resource: "*"
+
+Outputs:
+  TesterLambdaPollicyName:
+    Value: !Ref TesterLambdaPollicy
+    Description: Name of policy
+
+  TesterGluePollicyName:
+    Value: !Ref TesterGluePollicy
+    Description: Name of policy
+
+  TesterDatabasePollicyName:
+    Value: !Ref TesterDatabasePollicy
+    Description: Name of policy
+
+  TesterPollicyName:
+    Value: !Ref TesterPollicy
+    Description: Name of policy

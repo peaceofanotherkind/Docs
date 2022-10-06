@@ -1,0 +1,20 @@
+accounts: 
+  -
+    #AWS Account ID
+    342458631622 :
+        #Email associated with the account
+        email: awsadmin@bfusa.com
+        #Optional to group the accounts
+        accountgroup : masterbilling
+    #AWS Account ID
+    777447033908  :  
+        #Email associated with the account
+        email: aws-opn@bfusa.com
+        #Optional to group the accounts
+        accountgroup : bfusaprimary
+    #AWS Account ID
+    849645258556  :
+        #Email associated with the account
+        email: aws-dev@bfusa.com 
+        #Optional to group the accounts
+        accountgroup : dev

@@ -1,0 +1,6 @@
+[
+  { "ParameterKey": "MasterPortfolioId", "ParameterValue": "port-cgfarv6cfk3ay" },
+  { "ParameterKey": "MasterProductId", "ParameterValue": "prod-qgfwxcphmrmw2" },
+  { "ParameterKey": "PermissionSet01", "ParameterValue": "AWSAdministratorAccess" },
+  { "ParameterKey": "ProviderName", "ParameterValue": "Network" }
+]

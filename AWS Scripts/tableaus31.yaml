@@ -1,0 +1,67 @@
+############################################################
+# Filename: tableau-s3.yaml
+
+# Version History : 
+# v1:  Authored by Kevin Gross for support or feedback reach out at kevin.gross@accenture.com
+
+# Comments:
+# 
+# 01/05/2021 - KG
+# 
+# 
+
+############################################################
+
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters: 
+
+  S3TableauBucket: 
+    Type: String
+    Description: ARN of S3 Bucket
+
+Resources:
+
+  TableauS3Pollicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties: 
+      ManagedPolicyName: !Join [ "-", [  !Ref 'AWS::StackName', 'policy' ]]
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        - Sid: TableauS3Policy
+          Effect: Allow
+          Action:
+          - s3:GetBucketTagging
+          - s3:GetObjectVersionTagging
+          - s3:GetBucketLogging
+          - s3:ListBucket
+          - s3:GetBucketAcl
+          - s3:GetBucketPolicy
+          - s3:PutObject
+          - s3:GetObjectAcl
+          - s3:GetEncryptionConfiguration
+          - s3:DescribeJob
+          - s3:GetAnalyticsConfiguration
+          - s3:GetObject
+          - s3:GetObjectTagging
+          - s3:PutObjectTagging
+          - s3:GetBucketLocation
+          - s3:GetObjectVersion
+          Resource: 
+          - Fn::Join: ['/', [!Ref S3TableauBucket, '*'] ]
+        - Sid: TableauS3PolicyList
+          Effect: Allow
+          Action: 
+          - s3:ListBucket
+          - s3:GetBucketLocation
+          Resource: 
+          - !Ref S3TableauBucket
+        - Sid: TableauS3PolicyListAll
+          Effect: Allow
+          Action:
+          - s3:GetAccountPublicAccessBlock
+          - s3:ListAllMyBuckets
+          Resource: "*"
+
+

@@ -1,0 +1,81 @@
+roles:
+  -
+# All roles must being with, "Role_AWS_" for ADFS to sync properly.
+# Do not add, "-CAM" to the roles here.
+
+# "action" is either, "add" or, "remove"
+# "policy" is the file you created earlier (don't worry about the path)
+# "accountgroup" is either bfusaprimary, masterbilling, or dev. this line designates to which account this role will be assigned; if it will apply to all accounts, remove this line.
+
+# Once finished, comment-out the roles you added and/or delete the roles you've removed. We will keep this list as a record of current roles.
+
+
+
+#ALL AWS
+
+
+    #Role_AWS_Read :
+        #action : add
+        #policy : AWS_Read.json
+    #Role_AWS_Security_Read :  
+        #action : add
+        #policy : Security_Read.json
+     
+        
+#Primary Account
+        
+    #Role_AWS_S3_Entirenet-Images_Full :  
+        #action : add
+        #policy : S3_Entirenet-Images_Full.json
+        #accountgroup : bfusaprimary
+    #Role_AWS_S3_Mashery-Logs_Read :  
+        #action : add
+        #policy : S3_Mashery-Logs_Read.json
+        #accountgroup : bfusaprimary
+    #Role_AWS_S3_Mulesoft-Logs_Read :  
+        #action : add
+        #policy : S3_Mulesoft-Logs_Read.json
+        #accountgroup : bfusaprimary
+    #Role_AWS_S3_Oracle-Glacier_Full :  
+        #action : add
+        #policy : S3_Oracle-Glacier_Full.json
+        #accountgroup : bfusaprimary
+    #Role_AWS_S3_LWS-Artifacts_Full :  
+        #action : add
+        #policy : S3_LWS-Artifacts_Full.json
+        #accountgroup : bfusaprimary
+    #Role_AWS_S3_BSP-Artifacts_Full :  
+        #action : add
+        #policy : S3_BSP-Artifacts_Full.json
+        #accountgroup : bfusaprimary
+    #Role_AWS_S3_Documentum-POC_Full :  
+        #action : add
+        #policy : S3_Documentum-POC_Full.json
+        #accountgroup : bfusaprimary
+    Role_AWS_S3_Mashery-Logs_Read :  
+        action : add
+        policy : S3_Mashery-Logs_Full.json
+        accountgroup : bfusaprimary
+    Role_AWS_S3_Mulesoft-Logs_Read :  
+        action : add
+        policy : S3_Mulesoft-Logs_Full.json
+        accountgroup : bfusaprimary
+
+
+
+
+#Master Billing Account
+
+		
+		
+#Dev Account
+
+    #Role_AWS_DevF_ull :
+        #action : add
+        #policy : Dev_Full.json
+        #accountgroup : dev
+
+    #Role_AWS_Dev_Read :
+        #action : add
+        #policy : Dev_Read.json
+        #accountgroup : dev

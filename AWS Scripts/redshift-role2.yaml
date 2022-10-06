@@ -1,0 +1,90 @@
+############################################################
+# Filename: Redshift-role.yaml
+
+# Version History : 
+# v1:  Authored by Kevin Gross for support or feedback reach out at kevin.gross@accenture.com
+
+# Comments:
+# 
+# 11/12/2020 - KG
+# 
+# 
+
+############################################################
+
+AWSTemplateFormatVersion: 2010-09-09  
+
+Parameters: 
+  S3BucketName: 
+    Type: String
+    Description: Name of bucket that Redshift will need to access 
+
+Resources:
+  
+  RedShiftRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join [ "-", [  !Ref 'AWS::StackName', 'role' ] ]
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: ''
+          Effect: Allow
+          Principal:
+            Service: redshift.amazonaws.com
+          Action: sts:AssumeRole
+
+
+  RedShiftPolicy:
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyName: !Join [ "-", [ !Ref 'AWS::StackName', 'policy' ]]
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+
+          - 's3:Get*'
+          - 's3:List*'
+          - s3:GetEncryptionConfiguration
+          - s3:DescribeJob
+          - ec2:DescribeVpcs
+          - ec2:DescribeSubnets
+          - ec2:DescribeNetworkInterfaces
+          - ec2:DescribeAddresses
+          - ec2:AssociateAddress
+          - ec2:DisassociateAddress
+          - ec2:CreateNetworkInterface
+          - ec2:DeleteNetworkInterface
+          - ec2:ModifyNetworkInterfaceAttribute
+          - ec2:CreateVpcEndpoint
+          - ec2:DeleteVpcEndpoints
+          - ec2:DescribeVpcEndpoints
+          - ec2:ModifyVpcEndpoint
+
+          Resource:
+          - !Ref S3BucketName
+          - Fn::Join: ['/', [!Ref S3BucketName, '*'] ]
+        - Effect: Allow
+          Action:
+          - s3:GetAccountPublicAccessBlock
+          - s3:ListAllMyBuckets
+          - s3:HeadBucket
+          #Resource: arn:aws:kinesis:region:account-id:stream/stream-name
+          Resource:
+          - !Ref S3BucketName
+          - Fn::Join: ['/', [!Ref S3BucketName, '*'] ]
+        -
+          Effect: Allow
+          Action: cloudwatch:*
+          Resource: "*"
+
+      Roles:
+      - Ref: RedShiftRole
+
+Outputs:
+
+  RedShiftRoleName:
+    Value: !Ref RedShiftRole
+    Description: Name of Redshift Role

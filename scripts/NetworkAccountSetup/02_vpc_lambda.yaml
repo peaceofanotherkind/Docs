@@ -1,0 +1,331 @@
+# Copyright 2016-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# 
+# Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance with the License. A copy of the License is located at
+# 
+# http://aws.amazon.com/apache2.0/
+# 
+# or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+Description: "Exports CidrFindr: the Arn to a lambda function for use with custom resources. Finds available subnet CIDR ranges."
+Parameters:
+  orgId:
+    Description: Id of organization
+    Type: String
+  TGWRouteTableIDforDEV:
+    Type: String
+    Description: TGW Route Table ID for DEV environment
+  TGWRouteTableIDforNonProd:
+    Type: String
+    Description: TGW Route Table ID for Non Prod environment
+  TGWRouteTableIDforProd:
+    Type: String
+    Description: TGW Route Table ID for Prod environment
+
+Resources:
+  #bucket for exports and import TGW data
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+  # Create Dynamo table to keep records of used VPC subnets
+  # The lambda function needs read-only access to EC2
+  InvokeLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: InvokeLambda 
+              Effect: Allow
+              Action:
+              - lambda:InvokeFunction
+              - lambda:InvokeAsync 
+              Resource: !GetAtt Function.Arn
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS: "*"
+          Action: 
+          - "sts:AssumeRole"
+          Condition:
+            StringEquals:
+              aws:PrincipalOrgID: !Ref orgId
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: S3Limited
+              Effect: Allow
+              Action:
+              - s3:PutObject
+              - s3:GetObject 
+              Resource:
+                !Join
+                  - ''
+                  - - !GetAtt S3Bucket.Arn
+                    - '/*'
+            - Sid: Tgtw
+              Effect: Allow
+              Action:
+              - ec2:ExportTransitGatewayRoutes 
+              - cloudwatch:PutMetricData
+              Resource: "*"
+            - Sid: ListAndDescribe
+              Effect: Allow
+              Action:
+              - dynamodb:List*
+              - dynamodb:DescribeReservedCapacity*
+              - dynamodb:DescribeLimits
+              - dynamodb:DescribeTimeToLive
+              Resource: "*"
+            - Sid: SpecificTable
+              Effect: Allow
+              Action:
+              - dynamodb:BatchGet*
+              - dynamodb:DescribeStream
+              - dynamodb:DescribeTable
+              - dynamodb:Get*
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:BatchWrite*
+              - dynamodb:CreateTable
+              - dynamodb:Delete*
+              - dynamodb:Update*
+              - dynamodb:PutItem
+              Resource: 
+                !Join
+                  - ''
+                  - - !GetAtt SubnetsTableDynamo.Arn
+                    - '*'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action: 
+          - "sts:AssumeRole"
+
+  # Create the lambda function from the code stored in the bucket specified in params 
+  Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code: lambda-vpc-subnets.zip
+      Handler: lambda-vpc-subnets.lambda_handler
+      Role: !GetAtt Role.Arn
+      Runtime: python3.6
+      Timeout: 300
+      MemorySize: 256
+      Environment:
+        Variables:
+          tableName: !Ref SubnetsTableDynamo
+          s3bucketName: !Ref S3Bucket
+          publishMetrics: "yes"
+  SubnetsTableDynamo: 
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - 
+          AttributeName: "id"
+          AttributeType: "S"
+        - 
+          AttributeName: "region"
+          AttributeType: "S"
+      KeySchema: 
+        - 
+          AttributeName: "id"
+          KeyType: "HASH"
+        - 
+          AttributeName: "region"
+          KeyType: "RANGE"
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  SNSAssociationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: TGW-RouteTable-Association-and-Propagation
+      TopicName: TGW-RouteTable-Association-and-Propagation
+
+  SNSAssociationTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref SNSAssociationTopic
+      PolicyDocument:
+        Statement:
+          - Sid: AWSSNSPolicy
+            Action:
+              - sns:Publish
+            Effect: Allow
+            Resource: !Ref SNSAssociationTopic
+            Principal:
+              AWS: '*'
+            Condition:
+              StringEquals:
+                aws:PrincipalOrgID: !Ref orgId
+
+  SNSAssociationSubscription:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      Endpoint: !GetAtt AssociationLambda.Arn
+      Protocol: lambda
+      TopicArn: !Ref SNSAssociationTopic
+  SNSAssociationLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSAssociationTopic
+      FunctionName: !GetAtt AssociationLambda.Arn
+  AssociationLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Resource * acceptable for this policy."
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: 'lambda.amazonaws.com'
+          Action:
+          - 'sts:AssumeRole'
+      Path: '/'
+      ManagedPolicyArns:
+      - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+      - PolicyName: TGWAssociationandPropagation
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'ec2:AssociateTransitGatewayRouteTable'
+            - 'ec2:EnableTransitGatewayRouteTablePropagation'
+            Resource: '*'
+  AssociationLambda: # needs no monitoring because it is used as a custom resource
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Code:
+        ZipFile:
+          !Sub |
+          # Import statements
+          import boto3, sys
+          import json
+          import cfnresponse
+          import os
+          from botocore.exceptions import ClientError
+          import urllib.request
+          # Start Lambda function
+          def create_association(event, context):
+            print(f"VPC Association and Propagation {event['Records'][0]['Sns']['Subject']}")
+            event = json.loads(event['Records'][0]['Sns']['Message'])
+            print('data received:', event)
+            props = event['ResourceProperties']
+            env = props['Environment']
+            if (env.lower() == 'prod'):
+                RouteTableID = os.environ['TGW_PROD_RT']
+            elif (env.lower() == 'nonprod'):
+                RouteTableID = os.environ['TGW_NonProd_RT']
+            else:
+                RouteTableID = os.environ['TGW_DEV_RT']
+            
+            print(RouteTableID)
+            associationdata = json.dumps({
+              'RouteTable': RouteTableID,
+              'AttachmentID': props['AttachmentID']
+            })
+            print(associationdata)
+
+            try:
+              association = boto3.client('ec2')
+              propagation = boto3.client('ec2')
+              AssociationId = association.associate_transit_gateway_route_table(
+                TransitGatewayRouteTableId = RouteTableID,
+                TransitGatewayAttachmentId = props['AttachmentID']
+              )
+              PropagationId = propagation.enable_transit_gateway_route_table_propagation(
+                TransitGatewayRouteTableId = RouteTableID,
+                TransitGatewayAttachmentId = props['AttachmentID']
+              )
+              print(AssociationId)
+              print(PropagationId)
+              print("Respond: SUCCESS")
+              responseStatus = 'SUCCESS'
+              responseData = {}
+              sendResponse(event, context, responseStatus, responseData)
+
+            except ClientError as ex:
+              print('Association and Propagation has failed.  See the following error.')
+              print(ex.response['Error']['Message'])
+              print("Respond: FAILED")
+              responseStatus = 'FAILED'
+              responseData = {}
+              sendResponse(event, context, responseStatus, responseData)
+              
+          def sendResponse(event, context, responseStatus, responseData):
+            data = json.dumps({
+              'Status': responseStatus,
+              'PhysicalResourceId': context.log_stream_name,
+              'StackId': event['StackId'],
+              'RequestId': event['RequestId'],
+              'LogicalResourceId': event['LogicalResourceId'],
+              'Data': responseData
+            })
+            print(data)
+            opener = urllib.request.build_opener(urllib.request.HTTPHandler)
+            request = urllib.request.Request(url=event['ResponseURL'], data=data.encode('utf-8'))
+            request.add_header('Content-Type', '')
+            request.get_method = lambda: 'PUT'
+            url = opener.open(request)
+            print('HTTP Request Sent')
+            return
+
+          def lambda_handler(event, context):
+            client = json.loads(event['Records'][0]['Sns']['Message'])
+            print(f"Custom::AssociationandPropagation: {client['RequestType']}")
+            if client['RequestType'] in ["Create","Update"]:
+              print(f"{client['RequestType']}: Adding Association and Propagation")
+              create_association(event, context)
+            # Handle a CloudFormation resource delete event
+            if client['RequestType'] == "Delete":
+              print("Delete: Retaining Association and Propagation")
+              # Nothing to delete
+              responseStatus = 'DELETED'
+              responseData = {}
+              sendResponse(event, context, responseStatus, responseData)
+      Environment:
+        Variables:
+          TGW_DEV_RT: !Ref TGWRouteTableIDforDEV
+          TGW_NonProd_RT: !Ref TGWRouteTableIDforNonProd
+          TGW_PROD_RT: !Ref TGWRouteTableIDforProd
+      Handler: "index.lambda_handler"
+      MemorySize: 128
+      Role: !GetAtt "AssociationLambdaRole.Arn"
+      Runtime: "python3.6"
+      Timeout: 60
+
+Outputs:
+  InvokeLambdaRoleArn:
+    Value: !GetAtt InvokeLambdaRole.Arn
+  FunctionArn:
+    Value: !GetAtt Function.Arn
+  oSNSTopicforAssociationandPropagationArn:
+    Value: !Ref SNSAssociationTopic
+  oDynamoDBTableName:
+    Value: !Ref SubnetsTableDynamo

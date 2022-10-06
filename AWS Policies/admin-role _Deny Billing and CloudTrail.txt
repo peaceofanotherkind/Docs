@@ -1,0 +1,22 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": "*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "VisualEditor1",
+            "Effect": "Deny",
+            "Action": [
+                "aws-portal:ModifyBilling",
+                "aws-portal:ModifyAccount",
+                "aws-portal:ModifyPaymentMethods",
+				"cloudtrail:*"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

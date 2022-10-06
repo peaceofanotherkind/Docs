@@ -1,0 +1,774 @@
+# Copyright 2016-2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# 
+# Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance with the License. A copy of the License is located at
+# 
+# http://aws.amazon.com/apache2.0/
+# 
+# or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+Description: "This template creates Transit Gateway and associated Route Tables in the Networking Hub account. It also shares the TGW with all other accounts in Organization using RAM"
+Parameters:
+  orgId:
+    Description: Id of organization
+    Type: String
+  FlowLogsBucket:
+    Description: S3 bucket ARN (in Logging account) used for VPC Flowlog storage
+    Type: String
+    Default: TBD
+  MasterAccountID:
+    Type: String
+  LocalParameterPathforVPCID:
+    Type: String
+    Description: SSM Parameter Name for storing VPCID locally in the account
+    Default: '/org/member/local/vpcid'
+  AZCount:
+    Type: Number
+    Description: "# of AZs. Max - 2"
+    MinValue: 1
+    MaxValue: 2
+    Default: 2
+  ParentDNSDomain:
+    Type: String
+    Description: Parent DNS Domain for all the child DNS domains to be used by Application Accounts on AWS.
+  OnPremDNSDomain:
+    Type: String
+    Description: On-Premise DNS Domain to be resolved by Application Accounts on AWS.
+  OnPremDNS1:
+    Type: String
+    Description: IP address of the Primary on-premise DNS Server to forward the queries for the On-Premise DNS Domain.
+  OnPremDNS2:
+    Type: String
+    Description: IP address of the Secondary on-premise DNS Server to forward the queries for the On-Premise DNS Domain.
+  OnPremDNS3:
+    Type: String
+    Description: IP address of the Third on-premise DNS Server to forward the queries for the On-Premise DNS Domain.
+  Subnet1InboundIP:
+    Type: String
+    Description: Static IP address for Inbound Resolver in 1st Private Subnet
+  Subnet2InboundIP:
+    Type: String
+    Description: Static IP address for Inbound Resolver in 2nd Private Subnet
+  Subnet1OutboundIP:
+    Type: String
+    Description: Static IP address for Outbound Resolver in 1st Private Subnet
+  Subnet2OutboundIP:
+    Type: String
+    Description: Static IP address for Outbound Resolver in 2nd Private Subnet
+
+
+Conditions: 
+  TwoAZs:  !Equals [ !Ref AZCount, 2 ]
+
+Mappings:
+  NetworkConfiguration:
+    TransitGateway:
+      AutoAcceptSharedAttachments: "enable" # the solution assumes this setting is set to 'enable'.
+      DefaultRouteTableAssociation: "disable" # the solution assumes this setting is set to 'disable'.
+      DefaultRouteTablePropagation: "disable" # the solution assumes this setting is set to 'disable'.
+      DnsSupport: "enable" # this value can be changed based on customer preference
+      VpnEcmpSupport: "enable" # this value can be changed based on customer preference
+    us-east-1:
+      AmazonSideAsn: 64526 # this must be changed by a network admin only
+    us-east-2:
+      AmazonSideAsn: 64527 # this must be changed by a network admin only
+    us-west-1:
+      AmazonSideAsn: 64528 # this must be changed by a network admin only
+    us-west-2:
+      AmazonSideAsn: 64529 # this must be changed by a network admin only
+    eu-west-1:
+      AmazonSideAsn: 64530 # this must be changed by a network admin only
+    eu-west-2:
+      AmazonSideAsn: 64531 # this must be changed by a network admin only
+    eu-west-3:
+      AmazonSideAsn: 64532 # this must be changed by a network admin only
+    eu-central-1:
+      AmazonSideAsn: 64533 # this must be changed by a network admin only
+    ca-central-1:
+      AmazonSideAsn: 64534 # this must be changed by a network admin only
+    ap-northeast-1:
+      AmazonSideAsn: 64535 # this must be changed by a network admin only
+    ap-northeast-2:
+      AmazonSideAsn: 64536 # this must be changed by a network admin only
+    ap-south-1:
+      AmazonSideAsn: 64537 # this must be changed by a network admin only
+    ap-southeast-1:
+      AmazonSideAsn: 64538 # this must be changed by a network admin only
+    ap-southeast-2:
+      AmazonSideAsn: 64539 # this must be changed by a network admin only
+    sa-east-1:
+      AmazonSideAsn: 64540 # this must be changed by a network admin only
+      
+Resources:
+  #bucket for exports and import TGW data
+  AWSTransitGateway:
+    Type: AWS::EC2::TransitGateway
+    Properties:
+      AmazonSideAsn: !FindInMap [NetworkConfiguration, !Ref "AWS::Region", AmazonSideAsn]
+      Description: "Transit Gateway for Control Tower Landing Zone"
+      AutoAcceptSharedAttachments: !FindInMap [NetworkConfiguration, TransitGateway, AutoAcceptSharedAttachments]
+      DefaultRouteTableAssociation: !FindInMap [NetworkConfiguration, TransitGateway, DefaultRouteTableAssociation]
+      DefaultRouteTablePropagation: !FindInMap [NetworkConfiguration, TransitGateway, DefaultRouteTablePropagation]
+      DnsSupport: !FindInMap [NetworkConfiguration, TransitGateway, DnsSupport]
+      VpnEcmpSupport: !FindInMap [NetworkConfiguration, TransitGateway, VpnEcmpSupport]
+      Tags:
+        - Key: Name
+          Value: TGW
+  DevTGWRouteTable:
+    Type: AWS::EC2::TransitGatewayRouteTable
+    Properties:
+      TransitGatewayId: !Ref AWSTransitGateway
+      Tags:
+        -
+          Key: Name
+          Value: Dev
+  NonProdTGWRouteTable:
+    Type: AWS::EC2::TransitGatewayRouteTable
+    Properties:
+      TransitGatewayId: !Ref AWSTransitGateway
+      Tags:
+        -
+          Key: Name
+          Value: NonProd
+  ProdTGWRouteTable:
+    Type: AWS::EC2::TransitGatewayRouteTable
+    Properties:
+      TransitGatewayId: !Ref AWSTransitGateway
+      Tags:
+        -
+          Key: Name
+          Value: Prod
+  TGWResourceShare:
+    Type: "AWS::RAM::ResourceShare"
+    Properties:
+      Name: "Transit Gateway Resource Share"
+      ResourceArns:
+        - !Join ['', ['arn:aws:ec2:', !Ref 'AWS::Region', ':', !Ref 'AWS::AccountId', ':transit-gateway/', !Ref AWSTransitGateway]]
+      Principals: 
+        - !Join ['', ['arn:aws:organizations::', !Ref MasterAccountID, ':organization/', !Ref orgId]]
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.158.0.0/22
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Sub EGRESS-VPC-10.158.0.0/22
+
+  VPCFlowLog:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      LogDestination: !Join
+              - ""
+              - - !Ref FlowLogsBucket
+                - "/"
+      LogDestinationType: s3
+      ResourceId: !Ref VPC
+      ResourceType: VPC
+      TrafficType: ALL
+
+  PublicEgressVpcSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref 'VPC'
+      CidrBlock: 10.158.0.0/24
+      AvailabilityZone: 
+        Fn::Select: 
+          - 0
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Sub Public-AZ1-EGRESS-Subnet-10.158.0.0/24
+  PublicEgressVpcSubnet2:
+    Type: AWS::EC2::Subnet
+    Condition: TwoAZs
+    Properties:
+      VpcId: !Ref 'VPC'
+      CidrBlock: 10.158.1.0/24
+      AvailabilityZone: 
+        Fn::Select: 
+          - 1
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Sub Public-AZ2-EGRESS-Subnet-10.158.1.0/24
+  PrivateEgressVpcSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref 'VPC'
+      CidrBlock: 10.158.2.0/24     
+      AvailabilityZone: 
+        Fn::Select: 
+          - 0
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Sub Private-AZ1-EGRESS-Subnet-10.158.2.0/24
+  PrivateEgressVpcSubnet2:
+    Type: AWS::EC2::Subnet
+    Condition: TwoAZs
+    Properties:
+      VpcId: !Ref 'VPC'
+      CidrBlock: 10.158.3.0/24
+      AvailabilityZone: 
+        Fn::Select: 
+          - 1
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Sub Private-AZ2-EGRESS-Subnet-10.158.3.0/24
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: EGRESS-IGW
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref 'VPC'
+      InternetGatewayId: !Ref 'InternetGateway'
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Sub Public-EGRESS-VPC-RouteTable
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Sub Private-EGRESS-VPC-RouteTable
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Condition: TwoAZs
+    Properties:
+      VpcId: !Ref 'VPC'
+      Tags:
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+        - Key: Name
+          Value: !Sub Private-2-EGRESS-VPC-RouteTable
+
+  Route:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref 'RouteTable'
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref 'InternetGateway'
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'PublicEgressVpcSubnet'
+      RouteTableId: !Ref 'RouteTable'
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: TwoAZs
+    Properties:
+      SubnetId: !Ref 'PublicEgressVpcSubnet2'
+      RouteTableId: !Ref 'RouteTable'
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref 'PrivateRouteTable'
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref 'NATGateway'
+
+  PrivateRouteAZ11:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable
+       DestinationCidrBlock: 10.0.0.0/8
+       TransitGatewayId: !Ref AWSTransitGateway
+  
+  PrivateRouteAZ12:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable
+       DestinationCidrBlock: 172.16.0.0/12
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateRouteAZ13:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable
+       DestinationCidrBlock: 192.168.0.0/16
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateRouteAZ14:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable
+       DestinationCidrBlock: 207.45.159.0/24
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateRouteAZ15:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable
+       DestinationCidrBlock: 192.234.100.100/31
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateRouteAZ16:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable
+       DestinationCidrBlock: 199.48.17.0/24
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateRouteAZ17:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable
+       DestinationCidrBlock: 199.244.13.0/24
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateRouteAZ18:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable
+       DestinationCidrBlock: 199.48.18.0/24
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateRoute2:
+    Type: AWS::EC2::Route
+    Condition: TwoAZs
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref 'PrivateRouteTable2'
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref 'NATGateway2'
+
+  PrivateRouteAZ21:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable2
+       DestinationCidrBlock: 10.0.0.0/8
+       TransitGatewayId: !Ref AWSTransitGateway
+  
+  PrivateRouteAZ22:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable2
+       DestinationCidrBlock: 172.16.0.0/12
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateRouteAZ23:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable2
+       DestinationCidrBlock: 192.168.0.0/16
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateRouteAZ24:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable2
+       DestinationCidrBlock: 207.45.159.0/24
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateRouteAZ25:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable2
+       DestinationCidrBlock: 192.234.100.100/31
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateRouteAZ26:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable2
+       DestinationCidrBlock: 199.48.17.0/24
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateRouteAZ27:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable2
+       DestinationCidrBlock: 199.244.13.0/24
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateRouteAZ28:
+    Type: AWS::EC2::Route
+    DependsOn: EgressVpcAttachment
+    Properties:
+       RouteTableId: !Ref PrivateRouteTable2
+       DestinationCidrBlock: 199.48.18.0/24
+       TransitGatewayId: !Ref AWSTransitGateway
+
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'PrivateEgressVpcSubnet'
+      RouteTableId: !Ref 'PrivateRouteTable'
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: TwoAZs
+    Properties:
+      SubnetId: !Ref 'PrivateEgressVpcSubnet2'
+      RouteTableId: !Ref 'PrivateRouteTable2'
+
+  IPAddress:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+  IPAddress2:
+    Type: AWS::EC2::EIP
+    Condition: TwoAZs
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties: 
+      AllocationId: !GetAtt IPAddress.AllocationId
+      SubnetId: !Ref PublicEgressVpcSubnet
+      Tags: 
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+  NATGateway2:
+    Type: AWS::EC2::NatGateway
+    Condition: TwoAZs
+    Properties: 
+      AllocationId: !GetAtt IPAddress2.AllocationId
+      SubnetId: !Ref PublicEgressVpcSubnet2
+      Tags: 
+        - Key: Application
+          Value: !Ref 'AWS::StackId'
+      
+  EgressVpcAttachment:
+    Type: "AWS::EC2::TransitGatewayAttachment"
+    Properties:
+      SubnetIds:
+        !If 
+        - TwoAZs
+        -
+          - !Ref 'PrivateEgressVpcSubnet'
+          - !Ref 'PrivateEgressVpcSubnet2'
+        -
+          - !Ref 'PrivateEgressVpcSubnet'
+      Tags: 
+        - Key: Name
+          Value: !Sub EGRESS-VPC-TGW-Attach
+      TransitGatewayId: !Ref AWSTransitGateway
+      VpcId: !Ref VPC
+
+  rVpcIdSSMParameter:
+    Type: AWS::SSM::Parameter
+    Properties: 
+      Name: !Ref LocalParameterPathforVPCID
+      Type: String
+      Value: !Ref VPC
+
+  EgressRouteDev:
+      Type: AWS::EC2::TransitGatewayRoute
+      DependsOn: EgressVpcAttachment
+      Properties:
+        TransitGatewayRouteTableId: !Ref DevTGWRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        TransitGatewayAttachmentId: !Ref EgressVpcAttachment
+
+  EgressRouteNonProd:
+      Type: AWS::EC2::TransitGatewayRoute
+      DependsOn: EgressVpcAttachment
+      Properties:
+        TransitGatewayRouteTableId: !Ref NonProdTGWRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        TransitGatewayAttachmentId: !Ref EgressVpcAttachment
+
+  EgressRouteProd:
+      Type: AWS::EC2::TransitGatewayRoute
+      DependsOn: EgressVpcAttachment
+      Properties:
+        TransitGatewayRouteTableId: !Ref ProdTGWRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        TransitGatewayAttachmentId: !Ref EgressVpcAttachment
+
+# Create PHZ for network
+  Route53PrivateHostedZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Ref ParentDNSDomain
+      HostedZoneConfig:
+        Comment: aws.bfusa.com Private hosted zone
+      VPCs:
+        - VPCId: !Ref VPC
+          VPCRegion: !Ref AWS::Region
+
+  SecurityGroupforRoute53Resolvers:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: Security Group for Route53 Resolvers
+      SecurityGroupIngress: 
+        - Description: Allowing UDP DNS Traffic
+          IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: 0.0.0.0/0
+        - Description: Allowing TCP DNS Traffic
+          IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: 0.0.0.0/0
+      Tags: 
+        - Key: Name
+          Value: SecurityGroupforRoute53Resolvers
+      VpcId: !Ref 'VPC'
+
+## Creating Route53 Inbound and Outbound Resolvers Endpoints
+
+  Route53InboundEndpoint:
+    Type: "AWS::Route53Resolver::ResolverEndpoint"
+    Properties:
+      Name: Route53InboundEndpoint
+      Direction: INBOUND
+      IpAddresses:
+        - SubnetId: !Ref PrivateEgressVpcSubnet
+          Ip: !Ref Subnet1InboundIP
+        - SubnetId: !Ref PrivateEgressVpcSubnet2
+          Ip: !Ref Subnet2InboundIP
+      SecurityGroupIds:
+        - !GetAtt SecurityGroupforRoute53Resolvers.GroupId
+        
+  Route53OutboundEndpoint:
+    Type: "AWS::Route53Resolver::ResolverEndpoint"
+    Properties:
+      Name: Route53OutboundEndpoint
+      Direction: OUTBOUND
+      IpAddresses:
+        - SubnetId: !Ref PrivateEgressVpcSubnet
+          Ip: !Ref Subnet1OutboundIP
+        - SubnetId: !Ref PrivateEgressVpcSubnet2
+          Ip: !Ref Subnet2OutboundIP
+      SecurityGroupIds:
+        - !GetAtt SecurityGroupforRoute53Resolvers.GroupId
+
+## Creating Forwarding Rule for Application DNS Domains on AWS to be resolved by all accounts on AWS
+
+  ChildDomainsResolverRule:
+    Type: "AWS::Route53Resolver::ResolverRule"
+    Properties:
+      DomainName: !Ref ParentDNSDomain
+      Name: InternalDNSResolution
+      ResolverEndpointId: !GetAtt Route53OutboundEndpoint.ResolverEndpointId
+      RuleType: FORWARD
+      TargetIps:
+        - Ip: !Ref Subnet1InboundIP
+          Port: '53'
+        - Ip: !Ref Subnet2InboundIP
+          Port: '53'
+
+## Creating Forwarding Rule for On-Premise DNS Domain
+
+  OnPremDomainResolverRule:
+    Type: "AWS::Route53Resolver::ResolverRule"
+    Properties:
+      DomainName: !Ref OnPremDNSDomain
+      Name: OnPremiseDNSResolution
+      ResolverEndpointId: !GetAtt Route53OutboundEndpoint.ResolverEndpointId
+      RuleType: FORWARD
+      TargetIps:
+        - Ip: !Ref OnPremDNS1
+          Port: '53'
+        - Ip: !Ref OnPremDNS2
+          Port: '53'
+        - Ip: !Ref OnPremDNS3
+          Port: '53'
+
+## Attaching the Child Domains Resolver Rules with the VPC of the Hub Account
+
+  Route53RuleAssociationChildDomains:
+    Type: "AWS::Route53Resolver::ResolverRuleAssociation"
+    Properties:
+      Name: RuleAssociationforChildDomains
+      ResolverRuleId: !GetAtt ChildDomainsResolverRule.ResolverRuleId
+      VPCId: !Ref 'VPC'
+
+## Sharing the Route53 Resolver Rules with Organization using RAM (Resource Access Manager)
+
+  ResolverRuleShare:
+    Type: "AWS::RAM::ResourceShare"
+    Properties:
+      Name: "Route53 Resolver Rules Organizational Share"
+      ResourceArns:
+        - !GetAtt ChildDomainsResolverRule.Arn
+        - !GetAtt OnPremDomainResolverRule.Arn
+      Principals:
+        - !Sub arn:aws:organizations::${MasterAccountID}:organization/${orgId}
+
+## Automation to receive attachment requests from Child PHZs to the hub HubVpcId
+
+  SNSAssociationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: PrivateHostedZoneAssociationTopic
+      TopicName: PrivateHostedZoneAssociationTopic
+  SNSAssociationTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref SNSAssociationTopic
+      PolicyDocument:
+        Statement:
+          - Sid: AWSSNSPolicy
+            Action:
+              - sns:Publish
+            Effect: Allow
+            Resource: !Ref SNSAssociationTopic
+            Principal:
+              AWS: '*'
+            Condition:
+              StringEquals:
+                aws:PrincipalOrgID: !Ref orgId
+
+  SNSAssociationSubscription:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      Endpoint: !GetAtt AssociationLambda.Arn
+      Protocol: lambda
+      TopicArn: !Ref SNSAssociationTopic
+  SNSAssociationLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSAssociationTopic
+      FunctionName: !GetAtt AssociationLambda.Arn
+  AssociationLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "Resource * acceptable for this policy."
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: 'lambda.amazonaws.com'
+          Action:
+          - 'sts:AssumeRole'
+      Path: '/'
+      ManagedPolicyArns:
+      - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+      - PolicyName: Route53PrivateZoneAssociation
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'route53:AssociateVPCWithHostedZone'
+            Resource: !Sub 'arn:${AWS::Partition}:route53:::hostedzone/*'
+      - PolicyName: DescribeVPCs
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'ec2:DescribeVpcs'
+            Resource: '*'
+  AssociationLambda: # needs no monitoring because it is used as a custom resource
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Code:
+        ZipFile:
+          !Sub |
+          # Import statements
+          import boto3
+          import json
+          from botocore.exceptions import ClientError
+          # Start Lambda function
+          def lambda_handler(event, context):
+            print(f"Hosted Zone {event['Records'][0]['Sns']['Subject']}")
+            associationData = json.loads(event['Records'][0]['Sns']['Message'])
+            print('data received:', associationData)
+            try:
+              route53 = boto3.client('route53')
+              response = route53.associate_vpc_with_hosted_zone(
+                HostedZoneId=associationData['hostedZoneId'],
+                VPC={
+                  'VPCRegion': associationData['VPCRegion'],
+                  'VPCId': associationData['VPCId']
+                }
+              )
+              print(response)
+              print("Respond: SUCCESS")
+              return
+            except ClientError as ex:
+              print('Creating hosted zone association has failed.  See the following error.')
+              print(ex.response['Error']['Message'])
+              print("Respond: FAILED")
+              return
+      Handler: "index.lambda_handler"
+      MemorySize: 128
+      Role: !GetAtt "AssociationLambdaRole.Arn"
+      Runtime: "python3.6"
+      Timeout: 60
+
+Outputs:
+  tgwid:
+    Description: Transit Gateway ID for the Landing Zone
+    Value: !Ref AWSTransitGateway
+  tgwrtdev:
+    Description: TGW Route Table ID for Dev
+    Value: !Ref DevTGWRouteTable
+  tgwrtnonprod:
+    Description: TGW Route Table ID for Dev
+    Value: !Ref NonProdTGWRouteTable
+  tgwrtprod:
+    Description: TGW Route Table ID for Dev
+    Value: !Ref ProdTGWRouteTable
+  oChildDomainsResolverRuleID:
+    Description: Rule ID of the Shared Route53 rule for All Child Domains in Landing Zone
+    Value: !GetAtt "ChildDomainsResolverRule.ResolverRuleId"
+  oOnPremDomainResolverRuleID:
+    Description: Rule ID of the Shared Route53 rule for On-Premise DNS Domain
+    Value: !GetAtt "OnPremDomainResolverRule.ResolverRuleId"
+  SNSAssociationTopicArn:
+    Description: ARN of the SNSAssociationTopic
+    Value: !Ref SNSAssociationTopic
+  oOutBoundDNSResolverID:
+    Description: ID of the Route53 Outbound DNS resolver Endpoint
+    Value: !GetAtt Route53OutboundEndpoint.ResolverEndpointId
+  oInboundResolverIP1:
+    Description: First IP address of the Inbound Route53 Resolver endpoint
+    Value: !Ref Subnet1InboundIP
+  oInboundResolverIP2:
+    Description: First IP address of the Inbound Route53 Resolver endpoint
+    Value: !Ref Subnet2InboundIP

@@ -1,0 +1,68 @@
+---
+#Default region for deploying Custom Control Tower: Code Pipeline, Step functions, Lambda, SSM parameters, and StackSets
+region: us-east-1
+version: 2020-01-01
+
+# Control Tower Custom Service Control Policies
+organization_policies: []
+
+# Control Tower Custom CloudFormation Resources
+cloudformation_resources: 
+
+    #######################
+    # VPC Service Catalog #
+    #######################
+
+    # VPC Service Catalog, shared from the Network account
+    # This depends on the an account creating a shared VPC service catalog portfolio
+    # with the VPC template.
+    # Modify the parameters/service-catalog-vpc.json
+    - name: vpc-service-catalog-portfolio
+      deploy_method: stack_set
+      template_file: templates/service-catalog-vpc.template
+      parameter_file: parameters/service-catalog-vpc.json
+      deploy_to_ou:
+        # >>> Add newly created OUs needing VPCs here
+        # Do not include the OU containing the Network account here
+        # instead include all the accounts in that OU except for Network below in "deploy_to_account"
+        - Development
+        - Production
+        - Non-Production
+      deploy_to_account:
+        # Any accounts in the OU having the Network account, minus the Network account itself
+        # If there are no accounts other than Network, remove this deploy_to_account section entirely.
+        - 035935210323
+        - Security
+
+    - name: route53PublicZone-service-catalog-portfolio
+      deploy_method: stack_set
+      template_file: templates/service-catalog-route53PublicZone.template
+      parameter_file: parameters/service-catalog-route53PublicZone.json
+      deploy_to_ou:
+        # >>> Add newly created OUs needing VPCs here
+        # Do not include the OU containing the Network account here
+        # instead include all the accounts in that OU except for Network below in "deploy_to_account"
+        - Development
+        - Production
+        - Non-Production
+        #- Infrastructure
+      deploy_to_account:
+        # Any accounts in the OU having the Network account, minus the Network account itself
+        # If there are no accounts other than Network, remove this deploy_to_account section entirely.
+        # - Shared Services
+
+    # Logging - VPC Flowlog Bucket
+    - name: logging-vpcflowlogs-bucket
+      deploy_method: stack_set
+      template_file: templates/logging-flowlogs-bucket.yml
+      #parameter_file: parameters/logging-vpcflowlogs.json #Not used currently
+      deploy_to_ou:
+        # >>> Add newly created OUs needing VPCs here
+        # Do not include the OU containing the Network account here
+        # instead include all the accounts in that OU except for Network below in "deploy_to_account"
+        # - dev
+      deploy_to_account:
+        - Log archive
+        # Any accounts in the OU having the Network account, minus the Network account itself
+        # If there are no accounts other than Network, remove this deploy_to_account section entirely.
+        # - Shared Services

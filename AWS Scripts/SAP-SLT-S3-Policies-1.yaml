@@ -1,0 +1,95 @@
+############################################################
+# Filename: ECC_S3.yaml
+
+# Version History : 
+# v1:  Authored by Kevin Gross for support or feedback reach out at kevin.gross@accenture.com
+
+# Comments:
+# 
+# 10/2/2020 - KG
+# 
+# 
+
+############################################################
+
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters: 
+
+  S3Name: 
+    Type: String 
+    Description: S3 Bucket ARN for EC2 destination
+
+
+Resources:
+  
+  S3Policy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties: 
+      ManagedPolicyName: !Join [ "-", [  !Ref 'AWS::StackName', 's3', 'policy' ] ]
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - s3:GetBucketTagging
+          - s3:GetObjectVersionTagging
+          - s3:GetBucketLogging
+          - s3:ListBucket
+          - s3:GetBucketAcl
+          - s3:GetBucketPolicy
+          - s3:PutObject
+          - s3:PutObjectTagging
+          - s3:GetObjectAcl
+          - s3:GetEncryptionConfiguration
+          - s3:GetObjectTagging
+          - s3:GetBucketLocation
+          - s3:GetBucketTagging
+          - s3:GetObjectVersion
+          Resource:
+          - !Ref S3Name
+          - Fn::Join: ['/', [!Ref S3Name, '*'] ]
+        - Effect: Allow
+          Action:
+          - s3:ListBucket
+          - s3:GetObject
+          - s3:GetBucketLocation
+          Resource:
+          - !Ref S3Name
+        - Effect: Allow
+          Action:
+          - s3:GetAccountPublicAccessBlock
+          - s3:ListAllMyBuckets
+          Resource:
+          - "*"
+
+
+  KinesisPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties: 
+      ManagedPolicyName: !Join [ "-", [  !Ref 'AWS::StackName', 'kinesis', 'policy' ] ]
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        - Sid: KinesisPutRecord
+          Effect: Allow
+          Action:
+          - kinesis:PutRecord
+          - kinesis:PutRecords
+          Resource: "*"
+
+
+Outputs:
+
+
+  S3PolicyName:
+    Value: !Ref S3Policy
+    Description: Name of S3 Policy
+
+  S3NameARN:
+    Value: !Ref S3Name
+    Description: ARN for S3 Bucket
+
+  KinesisPolicyName:
+    Value: !Ref KinesisPolicy
+    Description: Name of Kinesis Policy

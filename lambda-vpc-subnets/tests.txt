@@ -1,0 +1,52 @@
+#UpdateTable example json
+
+{
+  "RequestType": "UpdateTable",
+  "ResourceProperties": {
+    "Region": "ca-central-1"
+  }
+}
+
+#Free currently used subnet
+{
+  "RequestType": "Delete",
+  "ServiceToken": "arn:aws:lambda:ca-central-1:420175422320:function:cidr-findr-Function-1BO8EJZTNMZSJ",
+  "ResponseURL": "https://cloudformation-custom-resource-response-cacentral1.s3.ca-central-1.amazonaws.com/xxx",
+  "StackId": "arn:aws:cloudformation:ca-central-1:420175422320:stack/vpc4/2b358b20-49e1-11ea-80cc-022a109b6f001",
+  "RequestId": "c88899b5-04ca-40c1-a1b3-e6c0807e269c",
+  "LogicalResourceId": "CidrFindr",
+  "PhysicalResourceId": "2020/02/07/[$LATEST]3d8fde36d9324f1f9a27bcb0968d3cfa",
+  "ResourceType": "Custom::CidrFindr",
+  "ResourceProperties": {
+    "ServiceToken": "arn:aws:lambda:ca-central-1:420175422320:function:cidr-findr-Function-1BO8EJZTNMZSJ",
+    "AccountId": "420175422320",
+    "SubnetMask": "27",
+    "SubnetsCount": "3",
+    "Region": "ca-central-1",
+    "VpcSize": "24",
+    "TgwId": "tgw-0d1eb700c5c866191"
+  }
+}
+
+
+#Take subnet
+{
+  "RequestType": "Create",
+  "ServiceToken": "arn:aws:lambda:ca-central-1:420175422320:function:cidr-findr-Function-1BO8EJZTNMZSJ",
+  "ResponseURL": "https://cloudformation-custom-resource-response-cacentral1.s3.ca-central-1.amazonaws.com/xxxx",
+  "StackId": "arn:aws:cloudformation:ca-central-1:420175422320:stack/vpc4/2b358b20-49e1-11ea-80cc-022a109b6f00",
+  "RequestId": "c88899b5-04ca-40c1-a1b3-e6c0807e269c",
+  "LogicalResourceId": "CidrFindr",
+  "PhysicalResourceId": "2020/02/07/[$LATEST]3d8fde36d9324f1f9a27bcb0968d3cfa",
+  "ResourceType": "Custom::CidrFindr",
+  "ResourceProperties": {
+    "ServiceToken": "arn:aws:lambda:ca-central-1:420175422320:function:cidr-findr-Function-1BO8EJZTNMZSJ",
+    "AccountId": "420175422320",
+    "SubnetMask": "27",
+    "SubnetsCount": "5",
+    "Region": "ca-central-1",
+    "VpcSize": "24",
+    "TgwId": "tgw-0d1eb700c5c866191",
+    "Env": "dev"
+  }
+}
